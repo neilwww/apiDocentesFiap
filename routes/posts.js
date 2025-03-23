@@ -1,7 +1,7 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Post = require('../models/post');
-const { auth, isDocente } = require('../middleware/auth');
+const Post = require("../models/post");
+const isDocente = require("../middleware/isDocente");
 
 /**
  * @swagger
@@ -28,10 +28,10 @@ const { auth, isDocente } = require('../middleware/auth');
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const posts = await Post.find()
-      .populate('author', 'username name role')
+      .populate("author", "username name role")
       .sort({ createdAt: -1 });
     res.json(posts);
   } catch (err) {
@@ -66,22 +66,22 @@ router.get('/', async (req, res) => {
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/search', async (req, res) => {
+router.get("/search", async (req, res) => {
   try {
     const searchTerm = req.query.q;
-    
+
     if (!searchTerm) {
-      return res.status(400).json({ message: 'Termo de busca não fornecido' });
+      return res.status(400).json({ message: "Termo de busca não fornecido" });
     }
-    
+
     const posts = await Post.find({
       $or: [
-        { title: { $regex: searchTerm, $options: 'i' } },
-        { content: { $regex: searchTerm, $options: 'i' } },
-        { tags: { $in: [new RegExp(searchTerm, 'i')] } }
-      ]
-    }).populate('author', 'username name role');
-    
+        { title: { $regex: searchTerm, $options: "i" } },
+        { content: { $regex: searchTerm, $options: "i" } },
+        { tags: { $in: [new RegExp(searchTerm, "i")] } },
+      ],
+    }).populate("author", "username name role");
+
     res.json(posts);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -113,12 +113,14 @@ router.get('/search', async (req, res) => {
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id)
-      .populate('author', 'username name role');
-    
-    if (!post) return res.status(404).json({ message: 'Post não encontrado' });
+    const post = await Post.findById(req.params.id).populate(
+      "author",
+      "username name role"
+    );
+
+    if (!post) return res.status(404).json({ message: "Post não encontrado" });
     res.json(post);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -131,8 +133,6 @@ router.get('/:id', async (req, res) => {
  *   post:
  *     summary: Criar um novo post
  *     tags: [Posts]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -142,11 +142,15 @@ router.get('/:id', async (req, res) => {
  *             required:
  *               - title
  *               - content
+ *               - author
  *             properties:
  *               title:
  *                 type: string
  *               content:
  *                 type: string
+ *               author:
+ *                 type: string
+ *                 description: ID do usuário docente
  *               tags:
  *                 type: array
  *                 items:
@@ -160,18 +164,16 @@ router.get('/:id', async (req, res) => {
  *               $ref: '#/components/schemas/Post'
  *       400:
  *         description: Dados inválidos
- *       401:
- *         description: Não autorizado
  *       403:
  *         description: Acesso proibido (não é docente)
  */
-router.post('/', auth, isDocente, async (req, res) => {
+router.post("/", isDocente, async (req, res) => {
   const post = new Post({
     title: req.body.title,
     content: req.body.content,
-    author: req.user._id,
+    author: req.body.author,
     tags: req.body.tags || [],
-    authorType: 'docente'
+    authorType: "docente",
   });
 
   try {
@@ -188,8 +190,6 @@ router.post('/', auth, isDocente, async (req, res) => {
  *   put:
  *     summary: Atualizar um post
  *     tags: [Posts]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -203,11 +203,16 @@ router.post('/', auth, isDocente, async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - author
  *             properties:
  *               title:
  *                 type: string
  *               content:
  *                 type: string
+ *               author:
+ *                 type: string
+ *                 description: ID do usuário docente
  *               tags:
  *                 type: array
  *                 items:
@@ -221,31 +226,31 @@ router.post('/', auth, isDocente, async (req, res) => {
  *               $ref: '#/components/schemas/Post'
  *       400:
  *         description: Dados inválidos
- *       401:
- *         description: Não autorizado
  *       403:
- *         description: Acesso proibido (não é o autor)
+ *         description: Acesso proibido (não é docente)
  *       404:
  *         description: Post não encontrado
  */
-router.put('/:id', auth, isDocente, async (req, res) => {
+router.put("/:id", isDocente, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    
+
     if (!post) {
-      return res.status(404).json({ message: 'Post não encontrado' });
+      return res.status(404).json({ message: "Post não encontrado" });
     }
-    
+
     // Verifica se o docente é o autor do post
-    if (post.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Você só pode editar seus próprios posts' });
+    if (post.author.toString() !== req.body.author) {
+      return res
+        .status(403)
+        .json({ message: "Você só pode editar seus próprios posts" });
     }
-    
+
     // Atualiza os campos
     if (req.body.title) post.title = req.body.title;
     if (req.body.content) post.content = req.body.content;
     if (req.body.tags) post.tags = req.body.tags;
-    
+
     const updatedPost = await post.save();
     res.json(updatedPost);
   } catch (err) {
@@ -259,8 +264,6 @@ router.put('/:id', auth, isDocente, async (req, res) => {
  *   delete:
  *     summary: Excluir um post
  *     tags: [Posts]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -268,35 +271,51 @@ router.put('/:id', auth, isDocente, async (req, res) => {
  *           type: string
  *         required: true
  *         description: ID do post
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - author
+ *             properties:
+ *               author:
+ *                 type: string
+ *                 description: ID do usuário docente
  *     responses:
  *       200:
  *         description: Post excluído com sucesso
- *       401:
- *         description: Não autorizado
  *       403:
- *         description: Acesso proibido (não é o autor)
+ *         description: Acesso proibido (não é docente ou não é o autor)
  *       404:
  *         description: Post não encontrado
  *       500:
  *         description: Erro interno do servidor
  */
-router.delete('/:id', auth, isDocente, async (req, res) => {
+router.delete("/:id", isDocente, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    
+
     if (!post) {
-      return res.status(404).json({ message: 'Post não encontrado' });
+      return res.status(404).json({ message: "Post não encontrado" });
     }
-    
+
     // Verifica se o docente é o autor do post
-    if (post.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Você só pode excluir seus próprios posts' });
+    if (post.author.toString() !== req.body.author) {
+      return res.status(403).json({
+        message: "Acesso negado: você só pode excluir seus próprios posts",
+        requestAuthor: req.body.author,
+        postAuthor: post.author.toString(),
+      });
     }
+
+    await Post.deleteOne({ _id: post._id });
+    return res.status(200).json({ message: "Post excluído com sucesso" });
     
-    await post.deleteOne();
-    res.json({ message: 'Post excluído com sucesso' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error in DELETE /posts/:id:", err);
+    return res.status(500).json({ message: err.message });
   }
 });
 

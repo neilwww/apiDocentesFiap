@@ -1,11 +1,12 @@
 const User = require('../models/user');
 
+
 const isDocente = async (req, res, next) => {
   try {
-    const userId = req.body.author || req.params.authorId;
+    const userId = req.body.author || req.query.author || req.headers['x-user-id'];
     
     if (!userId) {
-      return res.status(403).json({ message: 'Acesso negado: ID do usuário não fornecido' });
+      return res.status(403).json({ message: 'Acesso negado: ID do usuário não fornecido. Adicione "author" no corpo da requisição.' });
     }
     
     const user = await User.findById(userId);
@@ -17,6 +18,8 @@ const isDocente = async (req, res, next) => {
     if (user.role !== 'docente') {
       return res.status(403).json({ message: 'Acesso negado: apenas docentes podem realizar esta ação' });
     }
+    
+    req.user = user;
     
     next();
   } catch (error) {

@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   app:
     build: .
@@ -11,6 +13,7 @@ services:
       - /usr/src/app/node_modules
     depends_on:
       - mongo
+      - seed
     command: npm run dev
   
   mongo:
@@ -19,6 +22,22 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+
+  # Seed service
+  seed:
+    build: .
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/posts_db
+    command: >
+      sh -c "until nc -z mongo 27017; do
+        echo 'Waiting for MongoDB to start...'
+        sleep 1
+      done
+      && echo 'MongoDB is up - executing seed script'
+      && node scripts/seed.js"
+    restart: "no"
 
 volumes:
   mongo_data:

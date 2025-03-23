@@ -8,7 +8,7 @@
 4. [Estrutura do Projeto](#estrutura-do-projeto)
 5. [Modelos de Dados](#modelos-de-dados)
 6. [API Endpoints](#api-endpoints)
-7. [Autenticação](#autenticação)
+7. [Controle de Acesso](#controle-de-acesso)
 8. [Testes](#testes)
 9. [CI/CD](#cicd)
 10. [Implantação](#implantação)
@@ -39,7 +39,8 @@ A aplicação é containerizada usando Docker, o que facilita a implantação em
                                 │
                         ┌───────┴───────┐
                         │   Middlewares │
-                        │  Autenticação │
+                        │ Verificação de│
+                        │     Papel     │
                         └───────────────┘
 ```
 
@@ -50,7 +51,6 @@ A aplicação é containerizada usando Docker, o que facilita a implantação em
 - **Express**: Framework web para construção da API
 - **MongoDB**: Banco de dados NoSQL
 - **Mongoose**: ODM (Object Data Modeling) para MongoDB
-- **JWT**: JSON Web Tokens para autenticação
 - **bcryptjs**: Para hash de senhas
 - **Swagger**: Documentação da API
 
@@ -69,9 +69,8 @@ A aplicação é containerizada usando Docker, o que facilita a implantação em
 │   ├── user.js           # Modelo de usuário
 │   └── post.js           # Modelo de postagem
 ├── middleware/           # Middlewares da aplicação
-│   └── auth.js           # Middleware de autenticação
+│   └── isDocente.js      # Middleware de verificação de papel
 ├── routes/               # Rotas da API
-│   ├── auth.js           # Rotas de autenticação
 │   ├── posts.js          # Rotas de postagens
 │   └── users.js          # Rotas de usuários
 ├── __tests__/            # Testes automatizados
@@ -90,10 +89,9 @@ A aplicação é containerizada usando Docker, o que facilita a implantação em
 {
   "username": "string, único, obrigatório",
   "email": "string, único, obrigatório",
-  "password": "string, hash, obrigatório",
+  "password": "string, hash, opcional",
   "name": "string, obrigatório",
-  "role": "enum: ['docente', 'aluno'], default: 'aluno'",
-  "tokens": "array de tokens JWT"
+  "role": "enum: ['docente', 'aluno'], default: 'aluno'"
 }
 ```
 
@@ -113,22 +111,6 @@ A aplicação é containerizada usando Docker, o que facilita a implantação em
 ```
 
 ## API Endpoints
-
-### Autenticação
-
-- **POST /api/auth/register**
-  - Registra um novo usuário
-  - Corpo: `{ username, email, password, name, role }`
-  - Retorno: `{ user, token }`
-
-- **POST /api/auth/login**
-  - Autentica um usuário
-  - Corpo: `{ email, password }`
-  - Retorno: `{ user, token }`
-
-- **POST /api/auth/logout**
-  - Realiza logout (requer autenticação)
-  - Retorno: `{ message }`
 
 ### Usuários
 
@@ -166,35 +148,32 @@ A aplicação é containerizada usando Docker, o que facilita a implantação em
 
 - **POST /api/posts**
   - Cria uma nova postagem (apenas docentes)
-  - Corpo: `{ title, content, tags }`
+  - Corpo: `{ title, content, author, tags }`
   - Retorno: Objeto da postagem criada
 
 - **PUT /api/posts/:id**
   - Atualiza uma postagem existente (apenas docente autor)
-  - Corpo: `{ title, content, tags }`
+  - Corpo: `{ title, content, author, tags }`
   - Retorno: Objeto da postagem atualizada
 
 - **DELETE /api/posts/:id**
   - Exclui uma postagem (apenas docente autor)
+  - Corpo: `{ author }`
   - Retorno: `{ message }`
 
-## Autenticação
+## Controle de Acesso
 
-O sistema utiliza autenticação baseada em JWT (JSON Web Tokens).
+O sistema utiliza um middleware de verificação de papel para controle de acesso.
 
-### Fluxo de Autenticação
+### Identificação do Usuário
 
-1. O usuário se registra ou faz login
-2. A API gera um token JWT e o retorna
-3. O cliente deve incluir este token no cabeçalho `Authorization` em todas as requisições subsequentes
-4. O formato do cabeçalho deve ser: `Authorization: Bearer <token>`
+Para operações protegidas (criação, edição, exclusão de posts), é necessário fornecer o ID do autor no corpo da requisição através do campo `author`.
 
-### Controle de Acesso
+### Níveis de Acesso
 
-- Rotas públicas: Qualquer pessoa pode acessar
-- Rotas protegidas: Requerem autenticação
-- Rotas de docentes: Requerem autenticação e papel de 'docente'
-- Rotas de autor: Requerem que o usuário seja o autor do recurso
+- **Público**: Qualquer pessoa pode listar e visualizar usuários e postagens
+- **Docentes**: Apenas usuários com papel "docente" podem criar postagens
+- **Autor**: Apenas o autor de uma postagem pode editá-la ou excluí-la
 
 ## Testes
 
@@ -246,13 +225,11 @@ Para implantação em produção, configure as variáveis de ambiente:
 NODE_ENV=production
 PORT=3000
 MONGO_URI=mongodb://seu-servidor-mongodb:27017/sua-base
-JWT_SECRET=seu-segredo-jwt
 ```
 
 ## Considerações de Segurança
 
 - Senhas são armazenadas como hash usando bcrypt
-- Autenticação é feita via JWT com expiração
 - Controle de acesso é baseado em papéis (RBAC)
 - Validação de entrada em todas as rotas
 - Sanitização de saída para prevenir XSS

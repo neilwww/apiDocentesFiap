@@ -39,41 +39,6 @@ router.get('/', async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}:
- *   get:
- *     summary: Obter usuário por ID
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: ID do usuário
- *     responses:
- *       200:
- *         description: Detalhes do usuário
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/User'
- *       404:
- *         description: Usuário não encontrado
- *       500:
- *         description: Erro interno do servidor
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-/**
- * @swagger
  * /api/users:
  *   post:
  *     summary: Criar um novo usuário
@@ -132,6 +97,9 @@ router.post('/', async (req, res) => {
   }
 });
 
+// IMPORTANT: Route order matters! More specific routes must be placed
+// before generic ones to prevent parameter conflicts
+
 /**
  * @swagger
  * /api/users/{id}/posts:
@@ -157,6 +125,7 @@ router.post('/', async (req, res) => {
  *       500:
  *         description: Erro interno do servidor
  */
+// Put this route BEFORE the /:id route to prevent 'posts' being treated as an ID
 router.get('/:id/posts', async (req, res) => {
   try {
     const posts = await Post.find({ author: req.params.id })
@@ -164,6 +133,42 @@ router.get('/:id/posts', async (req, res) => {
       .sort({ createdAt: -1 });
     
     res.json(posts);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     summary: Obter usuário por ID
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID do usuário
+ *     responses:
+ *       200:
+ *         description: Detalhes do usuário
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       404:
+ *         description: Usuário não encontrado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+// This generic ID route must come after any routes with additional parts
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
