@@ -1,0 +1,49 @@
+{
+    "name": "user-posts-api",
+    "version": "1.0.0",
+    "description": "CRUD API for user posts",
+    "main": "app.js",
+    "scripts": {
+        "start": "node app.js",
+        "dev": "nodemon app.js",
+        "seed": "node scripts/seed.js",
+        "test": "jest",
+        "test:coverage": "jest --coverage"
+    },
+    "keywords": [
+        "nodejs",
+        "express",
+        "mongodb",
+        "docker"
+    ],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "bcryptjs": "^2.4.3",
+        "cors": "^2.8.5",
+        "dotenv": "^16.3.1",
+        "express": "^4.18.2",
+        "jsonwebtoken": "^9.0.1",
+        "mongoose": "^7.5.0",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^5.0.1"
+    },
+    "devDependencies": {
+        "jest": "^29.6.4",
+        "nodemon": "^3.0.1",
+        "supertest": "^6.3.3"
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "testMatch": [
+            "**/__tests__/**/*.js",
+            "**/?(*.)+(spec|test).js"
+        ],
+        "collectCoverageFrom": [
+            "models/**/*.js",
+            "middleware/**/*.js",
+            "routes/**/*.js"
+        ],
+        "verbose": true
+    }
+}

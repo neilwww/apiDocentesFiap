@@ -1,0 +1,54 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run tests
+        run: npm test
+        env:
+          MONGO_URI: mongodb://localhost:27017/posts_db_test
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'default_test_secret' }}
+          TEST_ENV: true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to production
+        run: |
+          echo "Add your deployment commands here"
+          # Example: Deploy to a server via SSH
+          # - Install SSH key
+          # - rsync or scp files
+          # - Restart services
+        env:
+          # Add any deployment secrets here
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
